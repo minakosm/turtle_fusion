@@ -1,0 +1,59 @@
+#include <memory>
+
+#include <rclcpp/rclcpp.hpp>
+
+#include "sensor_msgs/msg/point_cloud2.hpp"
+#include "sensor_msgs/msg/camera_info.hpp"
+
+#include "turtle_interfaces/msg/bounding_boxes.hpp"
+
+#include <shared_mutex>
+
+#include "ament_index_cpp/get_package_share_directory.hpp"
+
+#include "Fusion.hpp"
+
+#ifndef CAMERA_N
+#define CAMERA_N 3
+#endif
+
+#ifndef PI
+#define PI 3.14159
+#endif
+
+
+class FusionHandler : public rclcpp::Node, private Fusion
+{
+private:
+    rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr pcl_subscriber;
+    // message_filters::Subscriber<sensor_msgs::msg::PointCloud2> *pcl_subscriber;
+
+    rclcpp::Subscription<turtle_interfaces::msg::BoundingBoxes>::SharedPtr jai_left_subscriber;
+    rclcpp::Subscription<turtle_interfaces::msg::BoundingBoxes>::SharedPtr jai_center_subscriber;
+    rclcpp::Subscription<turtle_interfaces::msg::BoundingBoxes>::SharedPtr jai_right_subscriber;
+
+    // message_filters::Subscriber<turtle_interfaces::msg::BoundingBoxes> *jai_left_subscriber;
+    // message_filters::Subscriber<turtle_interfaces::msg::BoundingBoxes> *jai_center_subscriber;
+    // message_filters::Subscriber<turtle_interfaces::msg::BoundingBoxes> *jai_right_subscriber;
+    
+    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pcl_publisher;
+    sensor_msgs::msg::PointCloud2 coneDistancesMsg; // x y z rgb t 
+
+    mutable std::shared_timed_mutex fusion_mutex;
+
+    sensor_msgs::msg::PointCloud2 latest_pcl;
+
+
+public: 
+    FusionHandler();
+    ~FusionHandler();
+
+    void init_publishers();
+    void init_subscribers();
+
+    void lidarMsgCallback(const sensor_msgs::msg::PointCloud2);
+    void cameraCallback(const turtle_interfaces::msg::BoundingBoxes, int);
+
+    void publishCones();
+
+};
