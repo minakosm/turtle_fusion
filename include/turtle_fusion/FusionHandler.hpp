@@ -25,6 +25,17 @@
 class FusionHandler : public rclcpp::Node, private Fusion
 {
 private:
+
+    struct Topics{
+        std::string pcl_subscriber_topic;
+        std::string pcl_publisher_topic;
+        std::string jai_left_topic;
+        std::string jai_center_topic;
+        std::string jai_right_topic;
+    };
+
+    Topics t;
+
     rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr pcl_subscriber;
     // message_filters::Subscriber<sensor_msgs::msg::PointCloud2> *pcl_subscriber;
 
@@ -44,10 +55,12 @@ private:
     sensor_msgs::msg::PointCloud2 latest_pcl;
 
 
+
 public: 
     FusionHandler();
     ~FusionHandler();
 
+    void def_topics();
     void init_publishers();
     void init_subscribers();
 

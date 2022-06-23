@@ -4,12 +4,10 @@
 #include "eigen3/Eigen/Core"
 #include "yaml-cpp/yaml.h"
 
-#include "FusionHandler.hpp"
+#include <boost/property_tree/ptree.hpp>
+#include <boost/property_tree/ini_parser.hpp>
 
-#define LIDAR_TOPIC "ouster/RawPointcloud"
-#define LEFT_CAMERA_TOPIC "/jai_left_boundingboxes"
-#define CENTER_CAMERA_TOPIC "/jai_center_boundingboxes"
-#define RIGHT_CAMERA_TOPIC "/jai_right_boundingboxes"
+#include "FusionHandler.hpp"
 
 using namespace Eigen;
 
@@ -18,6 +16,7 @@ Matrix<float, 3, 4> transformation_matrix;
 
 FusionHandler::FusionHandler() : Node("early_fusion_handler")
 {
+    def_topics();
     init_subscribers();
     init_publishers();
 }
@@ -26,16 +25,33 @@ FusionHandler::~FusionHandler()
 {
 }
 
+void FusionHandler::def_topics()
+{
+    std::string filename = ament_index_cpp::get_package_share_directory("turtle_fusion")
+                           + "/settings/topic_settings.ini";
+
+    boost::property_tree::ptree pt;
+    boost::property_tree::ini_parser::read_ini(filename, pt);
+
+    t.pcl_subscriber_topic = "Subscribers.pcl_sub";
+
+    t.pcl_publisher_topic = "Publishers.pcl_pub";
+    t.jai_left_topic = "Publishers.jai_left_pub";
+    t.jai_left_topic = "Publishers.jai_center_pub";
+    t.jai_left_topic = "Publishers.jai_right_pub";
+
+}
+
 void FusionHandler::init_subscribers()
 {
     rclcpp::QoS qos(10);
     qos.reliability(RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT);
     
-    pcl_subscriber = this->create_subscription<sensor_msgs::msg::PointCloud2>(LIDAR_TOPIC, qos, std::bind(&FusionHandler::lidarMsgCallback, this, std::placeholders::_1));
+    pcl_subscriber = this->create_subscription<sensor_msgs::msg::PointCloud2>(t.pcl_subscriber_topic, qos, std::bind(&FusionHandler::lidarMsgCallback, this, std::placeholders::_1));
     
-    jai_left_subscriber = this->create_subscription<turtle_interfaces::msg::BoundingBoxes>(LEFT_CAMERA_TOPIC, qos, std::bind(&FusionHandler::cameraCallback,this,std::placeholders::_1, 0));
-    jai_center_subscriber = this->create_subscription<turtle_interfaces::msg::BoundingBoxes>(CENTER_CAMERA_TOPIC, qos, std::bind(&FusionHandler::cameraCallback,this,std::placeholders::_1, 1));
-    jai_right_subscriber = this->create_subscription<turtle_interfaces::msg::BoundingBoxes>(RIGHT_CAMERA_TOPIC, qos, std::bind(&FusionHandler::cameraCallback,this,std::placeholders::_1, 2));
+    jai_left_subscriber = this->create_subscription<turtle_interfaces::msg::BoundingBoxes>(t.jai_left_topic, qos, std::bind(&FusionHandler::cameraCallback,this,std::placeholders::_1, 0));
+    jai_center_subscriber = this->create_subscription<turtle_interfaces::msg::BoundingBoxes>(t.jai_center_topic, qos, std::bind(&FusionHandler::cameraCallback,this,std::placeholders::_1, 1));
+    jai_right_subscriber = this->create_subscription<turtle_interfaces::msg::BoundingBoxes>(t.jai_right_topic, qos, std::bind(&FusionHandler::cameraCallback,this,std::placeholders::_1, 2));
 
 }
 
