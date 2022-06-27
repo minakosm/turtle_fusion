@@ -16,9 +16,12 @@ Matrix<float, 3, 4> transformation_matrix;
 
 FusionHandler::FusionHandler() : Node("early_fusion_handler")
 {
+    RCLCPP_INFO(this->get_logger(), "Spinning Node");
     def_topics();
+    RCLCPP_INFO(this->get_logger(), "Initialized topics");
     init_subscribers();
     init_publishers();
+    RCLCPP_INFO(this->get_logger(), "Initialized publisers/subscribers, waiting for callbacks");
 }
 
 FusionHandler::~FusionHandler()
@@ -33,12 +36,12 @@ void FusionHandler::def_topics()
     boost::property_tree::ptree pt;
     boost::property_tree::ini_parser::read_ini(filename, pt);
 
-    t.pcl_subscriber_topic = "Subscribers.pcl_sub";
+    t.pcl_subscriber_topic = pt.get<std::string>("Subscribers.pcl_sub");
 
-    t.pcl_publisher_topic = "Publishers.pcl_pub";
-    t.jai_left_topic = "Publishers.jai_left_pub";
-    t.jai_left_topic = "Publishers.jai_center_pub";
-    t.jai_left_topic = "Publishers.jai_right_pub";
+    t.pcl_publisher_topic = pt.get<std::string>("Publishers.pcl_pub");
+    t.jai_left_topic = pt.get<std::string>("Publishers.jai_left_pub");
+    t.jai_center_topic = pt.get<std::string>("Publishers.jai_center_pub");
+    t.jai_right_topic = pt.get<std::string>("Publishers.jai_right_pub");
 
 }
 
