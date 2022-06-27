@@ -43,7 +43,7 @@ public:
     void find_inside_bounding_boxes(turtle_interfaces::msg::BoundingBoxes);
     void extract_distance(std::vector<float>, std::vector<float>, std::vector<float>, int);
 
-    void fusion(sensor_msgs::msg::PointCloud2, turtle_interfaces::msg::BoundingBoxes, int);
+    void fusion(sensor_msgs::msg::PointCloud2, turtle_interfaces::msg::BoundingBoxes);
 
     MatrixXf get_lidar_xyz(){return lidar_xyz;}
     std::vector<cv::Point2f> get_px(){return px;}

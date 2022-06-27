@@ -25,12 +25,24 @@ find_package(ament_index_cpp)
 # further dependencies manually.
 # find_package(<dependency> REQUIRED)
 
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include
+                    ${OpenCV_INCLUDE_DIRS}
+                    ${YAML_CPP_INCLUDE_DIRS})
 
+add_library(fusion src/early_fusion.cpp)
+target_link_libraries(fusion Eigen3::Eigen)
+target_link_libraries(fusion ${YAML_CPP_LIBRARIES})
+target_link_libraries(fusion ${OpenCV_LIBRARIES})
+ament_target_dependencies(fusion rclcpp std_msgs sensor_msgs ament_index_cpp tf2_ros turtle_interfaces)
+
+add_executable(camera_lidar_fusion src/main.cpp)
+target_link_libraries(camera_lidar_fusion fusion)
+ament_target_dependencies(camera_lidar_fusion rosbag2_cpp rosbag2_storage rcutils sensor_msgs)
 
 install(DIRECTORY
         settings
         DESTINATION share/${PROJECT_NAME})
+
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
   # the following line skips the linter which checks for copyrights

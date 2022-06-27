@@ -7,7 +7,7 @@
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/ini_parser.hpp>
 
-#include "FusionHandler.hpp"
+#include "turtle_fusion/FusionHandler.hpp"
 
 using namespace Eigen;
 
@@ -48,10 +48,14 @@ void FusionHandler::init_subscribers()
     qos.reliability(RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT);
     
     pcl_subscriber = this->create_subscription<sensor_msgs::msg::PointCloud2>(t.pcl_subscriber_topic, qos, std::bind(&FusionHandler::lidarMsgCallback, this, std::placeholders::_1));
-    
-    jai_left_subscriber = this->create_subscription<turtle_interfaces::msg::BoundingBoxes>(t.jai_left_topic, qos, std::bind(&FusionHandler::cameraCallback,this,std::placeholders::_1, 0));
-    jai_center_subscriber = this->create_subscription<turtle_interfaces::msg::BoundingBoxes>(t.jai_center_topic, qos, std::bind(&FusionHandler::cameraCallback,this,std::placeholders::_1, 1));
-    jai_right_subscriber = this->create_subscription<turtle_interfaces::msg::BoundingBoxes>(t.jai_right_topic, qos, std::bind(&FusionHandler::cameraCallback,this,std::placeholders::_1, 2));
+
+    // std::function<void(const turtle_interfaces::msg::BoundingBoxes msg)> jai_left_subscriber = std::bind(&FusionHandler::cameraCallback, this, std::placeholders::_1, 0);
+    // std::function<void(const turtle_interfaces::msg::BoundingBoxes msg)> jai_center_subscriber = std::bind(&FusionHandler::cameraCallback, this, std::placeholders::_1, 1);
+    // std::function<void(const turtle_interfaces::msg::BoundingBoxes msg)> jai_right_subscriber = std::bind(&FusionHandler::cameraCallback, this, std::placeholders::_1, 2);
+
+    jai_left_subscriber = this->create_subscription<turtle_interfaces::msg::BoundingBoxes>(t.jai_left_topic, qos, std::bind(&FusionHandler::cameraCallback,this,std::placeholders::_1));
+    jai_center_subscriber = this->create_subscription<turtle_interfaces::msg::BoundingBoxes>(t.jai_center_topic, qos, std::bind(&FusionHandler::cameraCallback,this,std::placeholders::_1));
+    jai_right_subscriber = this->create_subscription<turtle_interfaces::msg::BoundingBoxes>(t.jai_right_topic, qos, std::bind(&FusionHandler::cameraCallback,this,std::placeholders::_1));
 
 }
 
@@ -99,25 +103,25 @@ void FusionHandler::lidarMsgCallback(sensor_msgs::msg::PointCloud2 pcl_msg)
     std::cout << "Save latest PointCloud message"<<std::endl;
 }
 
-void FusionHandler::cameraCallback(turtle_interfaces::msg::BoundingBoxes cam_msg, int cam_id)
+void FusionHandler::cameraCallback(const turtle_interfaces::msg::BoundingBoxes cam_msg)
 {
     std::cout<<"Inside Camera Callback"<<std::endl;
-    std::cout<<"Camera identifier : "<<cam_id<<std::endl;
+    std::cout<<"Camera identifier : "<<cam_msg.camera<<std::endl;
 
     fusion_mutex.lock_shared();
     auto fusion_pcl = this->latest_pcl;
     fusion_mutex.unlock_shared();
 
-    fusion(fusion_pcl, cam_msg, cam_id);
+    fusion(fusion_pcl, cam_msg);
 
     publishCones();
 }
 
-void Fusion::fusion(sensor_msgs::msg::PointCloud2 pcl_msg , turtle_interfaces::msg::BoundingBoxes cam_msg , int cam_id)
+void Fusion::fusion(sensor_msgs::msg::PointCloud2 pcl_msg , turtle_interfaces::msg::BoundingBoxes cam_msg)
 {
     set_lidar_XYZ(pcl_msg);
-    read_intrinsic_params(cam_id);
-    calculate_transformation_matrix(cam_id);
+    read_intrinsic_params(cam_msg.camera);
+    calculate_transformation_matrix(cam_msg.camera);
     calculate_pixel_points();
 
     find_inside_bounding_boxes(cam_msg);

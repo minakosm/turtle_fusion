@@ -3,15 +3,13 @@
 #include <rclcpp/rclcpp.hpp>
 
 #include "sensor_msgs/msg/point_cloud2.hpp"
-#include "sensor_msgs/msg/camera_info.hpp"
-
 #include "turtle_interfaces/msg/bounding_boxes.hpp"
 
 #include <shared_mutex>
 
 #include "ament_index_cpp/get_package_share_directory.hpp"
 
-#include "Fusion.hpp"
+#include "turtle_fusion/Fusion.hpp"
 
 #ifndef CAMERA_N
 #define CAMERA_N 3
@@ -65,7 +63,7 @@ public:
     void init_subscribers();
 
     void lidarMsgCallback(const sensor_msgs::msg::PointCloud2);
-    void cameraCallback(const turtle_interfaces::msg::BoundingBoxes, int);
+    void cameraCallback(const turtle_interfaces::msg::BoundingBoxes);
 
     void publishCones();
 
