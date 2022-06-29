@@ -161,7 +161,7 @@ void Fusion::find_inside_bounding_boxes(turtle_interfaces::msg::BoundingBoxes ca
     pcl_xyz.resize(3,cam_msg.x.size());
 
     for(int i=0; i<cam_msg.x.size(); i++){
-        bounding_boxes[i] = cv::Rect2f(cam_msg.x[i], cam_msg.y[i], cam_msg.w[i], cam_msg.h[i]);
+        bounding_boxes[i] = cv::Rect2d(cam_msg.x[i], cam_msg.y[i], cam_msg.w[i], cam_msg.h[i]);
         for(int j=0; j<px.size(); j++){
             if(px[j].inside(bounding_boxes[i])){
                 x_buf.push_back(lidar_xyz(0,j));    //x(j)

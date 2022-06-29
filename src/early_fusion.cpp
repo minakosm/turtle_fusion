@@ -70,7 +70,7 @@ void FusionHandler::init_publishers()
     pcl_publisher = this->create_publisher<sensor_msgs::msg::PointCloud2>("/fusion/coneDistances", Qos);
 
     coneDistancesMsg.header.frame_id = "os1";
-    coneDistancesMsg.fields.resize(4); //x, y, z
+    coneDistancesMsg.fields.resize(3); //x, y, z
         
     coneDistancesMsg.fields[0].name = "x";
     coneDistancesMsg.fields[0].offset = 0;
@@ -86,11 +86,6 @@ void FusionHandler::init_publishers()
     coneDistancesMsg.fields[2].offset = 8;
     coneDistancesMsg.fields[2].datatype = 7;
     coneDistancesMsg.fields[2].count = 1;
-
-    coneDistancesMsg.fields[3].name = "t";
-    coneDistancesMsg.fields[3].offset = 12;
-    coneDistancesMsg.fields[3].datatype = 6;
-    coneDistancesMsg.fields[3].count = 1;
     /*
         ADD ConeDistances attributes
     */
@@ -109,7 +104,7 @@ void FusionHandler::lidarMsgCallback(sensor_msgs::msg::PointCloud2 pcl_msg)
 void FusionHandler::cameraCallback(const turtle_interfaces::msg::BoundingBoxes cam_msg)
 {
     std::cout<<"Inside Camera Callback"<<std::endl;
-    std::cout<<"Camera identifier : "<<cam_msg.camera<<std::endl;
+    std::cout<<"Camera identifier : "<<(int)cam_msg.camera<<std::endl;
 
     fusion_mutex.lock_shared();
     auto fusion_pcl = this->latest_pcl;
@@ -122,9 +117,10 @@ void FusionHandler::cameraCallback(const turtle_interfaces::msg::BoundingBoxes c
 
 void Fusion::fusion(sensor_msgs::msg::PointCloud2 pcl_msg , turtle_interfaces::msg::BoundingBoxes cam_msg)
 {
+    int camera_id = (int)cam_msg.camera;
     set_lidar_XYZ(pcl_msg);
-    read_intrinsic_params(cam_msg.camera);
-    calculate_transformation_matrix(cam_msg.camera);
+    read_intrinsic_params(camera_id);
+    calculate_transformation_matrix(camera_id);
     calculate_pixel_points();
 
     find_inside_bounding_boxes(cam_msg);
