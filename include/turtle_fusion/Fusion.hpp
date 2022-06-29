@@ -144,9 +144,11 @@ void Fusion::calculate_transformation_matrix(int camera_id){
 
 void Fusion::calculate_pixel_points()
 {
-    auto pixel_homeogenous_points = intrinsic_K * transformation_matrix * lidar_xyz;
 
+    auto pixel_homeogenous_points = intrinsic_K * transformation_matrix * lidar_xyz;
+    std::cout<<"SUCCESFULL PX DECLARATION "<<std::endl;
     px.resize(pixel_homeogenous_points.cols());
+    std::cout<<"PX VECTOR SIZE = " << pixel_homeogenous_points.cols()<<std::endl;
     for(int i=0; i<pixel_homeogenous_points.cols(); i++){
         px[i].x = pixel_homeogenous_points(0,i)/pixel_homeogenous_points(2,i);
         px[i].y = pixel_homeogenous_points(1,i)/pixel_homeogenous_points(2,i);
