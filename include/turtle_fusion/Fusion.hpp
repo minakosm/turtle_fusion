@@ -169,7 +169,7 @@ void Fusion::find_inside_bounding_boxes(turtle_interfaces::msg::BoundingBoxes ca
                 z_buf.push_back(lidar_xyz(2,j));    //z(j) 
             }
         }
-
+        std::cout<<"ENTERING DISTANCE EXTRACTION FUNC in FUSION.HPP"<<std::endl;
         extract_distance(x_buf, y_buf, z_buf, i);
         x_buf.clear();
         y_buf.clear();

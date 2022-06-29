@@ -107,8 +107,10 @@ void FusionHandler::cameraCallback(const turtle_interfaces::msg::BoundingBoxes c
     std::cout<<"Camera identifier : "<<(int)cam_msg.camera<<std::endl;
 
     fusion_mutex.lock_shared();
+    std::cout<<"DEBUG INSIDE MUTEX"<<std::endl;
     auto fusion_pcl = this->latest_pcl;
     fusion_mutex.unlock_shared();
+    std::cout<<"MUTEX_LOCKED"<<std::endl;
 
     fusion(fusion_pcl, cam_msg);
 
@@ -117,12 +119,19 @@ void FusionHandler::cameraCallback(const turtle_interfaces::msg::BoundingBoxes c
 
 void Fusion::fusion(sensor_msgs::msg::PointCloud2 pcl_msg , turtle_interfaces::msg::BoundingBoxes cam_msg)
 {
-    int camera_id = (int)cam_msg.camera;
-    set_lidar_XYZ(pcl_msg);
-    read_intrinsic_params(camera_id);
-    calculate_transformation_matrix(camera_id);
-    calculate_pixel_points();
 
+    std::cout<<"INSIDE FUSION FNCTION"<<std::endl;
+    int camera_id = (int)cam_msg.camera;
+
+    std::cout<<"CAMERA ID = "<<camera_id<<std::endl;
+    set_lidar_XYZ(pcl_msg);
+    std::cout<<"FUSION DEBUG 1"<<std::endl;
+    read_intrinsic_params(camera_id);
+    std::cout<<"FUSION DEBUG 2"<<std::endl;
+    calculate_transformation_matrix(camera_id);
+    std::cout<<"FUSION DEBUG 3"<<std::endl;
+    calculate_pixel_points();
+    std::cout<<"FUSION DEBUG 4"<<std::endl;
     find_inside_bounding_boxes(cam_msg);
 }
 
