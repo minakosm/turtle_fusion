@@ -106,6 +106,8 @@ void FusionHandler::cameraCallback(const turtle_interfaces::msg::BoundingBoxes c
     std::cout<<"Inside Camera Callback"<<std::endl;
     std::cout<<"Camera identifier : "<<(int)cam_msg.camera<<std::endl;
 
+
+
     fusion_mutex.lock_shared();
     std::cout<<"DEBUG INSIDE MUTEX"<<std::endl;
     auto fusion_pcl = this->latest_pcl;
@@ -113,7 +115,7 @@ void FusionHandler::cameraCallback(const turtle_interfaces::msg::BoundingBoxes c
     std::cout<<"MUTEX_LOCKED"<<std::endl;
 
     fusion(fusion_pcl, cam_msg);
-
+    std::cout<<"EXITING FUSION"<<std::endl;
     publishCones();
 }
 
@@ -137,6 +139,7 @@ void Fusion::fusion(sensor_msgs::msg::PointCloud2 pcl_msg , turtle_interfaces::m
 
 void FusionHandler::publishCones()
 {
+    MatrixXf pcl_msg;
     uint8_t* ptr = coneDistancesMsg.data.data();
 
     coneDistancesMsg.width = get_pcl_xyz().cols();
@@ -146,14 +149,24 @@ void FusionHandler::publishCones()
     coneDistancesMsg.row_step = coneDistancesMsg.width * coneDistancesMsg.point_step;
     coneDistancesMsg.is_dense = true;
 
+
+    std::cout<<"DEBUG 7"<<std::endl;
     coneDistancesMsg.data.resize(coneDistancesMsg.point_step * coneDistancesMsg.width);
-    
-    for (int i = 0; i < get_pcl_xyz().cols(); i++){
-       *((float*)(ptr + i*coneDistancesMsg.point_step)) = get_pcl_xyz()(0,i);
-       *((float*)(ptr + i*coneDistancesMsg.point_step + 4)) = get_pcl_xyz()(1,i);
-       *((float*)(ptr + i*coneDistancesMsg.point_step + 8)) = get_pcl_xyz()(2,i);
+    std::cout<<"DEBUG 8"<<std::endl;
+   
+    std::cout<<"PclMsg = ("<<pcl_msg.rows()<<" x "<<pcl_msg.cols()<<")"<<std::endl;
+    for (int i = 0; i < pcl_msg.cols(); i++){
+    //    *((float*)(ptr + i*coneDistancesMsg.point_step)) = get_pcl_xyz()(0,i);
+    //    *((float*)(ptr + i*coneDistancesMsg.point_step + 4)) = get_pcl_xyz()(1,i);
+    //    *((float*)(ptr + i*coneDistancesMsg.point_step + 8)) = get_pcl_xyz()(2,i);
+
+    *((float*)(ptr + i*coneDistancesMsg.point_step)) = pcl_msg(0,i);
+    std::cout<<"i = "<<i<<std::endl;
+    *((float*)(ptr + i*coneDistancesMsg.point_step + 4)) = pcl_msg(1,i);
+    *((float*)(ptr + i*coneDistancesMsg.point_step + 8)) = pcl_msg(2,i);
+    std::cout<<"NEXT ITERATION"<<std::endl;
     }
     
     pcl_publisher->publish(coneDistancesMsg);
-
+    std::cout<<"MESSAGE PUBLISHED!!!!"<<std::endl;
 }

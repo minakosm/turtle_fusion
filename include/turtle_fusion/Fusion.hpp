@@ -145,13 +145,27 @@ void Fusion::calculate_transformation_matrix(int camera_id){
 void Fusion::calculate_pixel_points()
 {
 
-    auto pixel_homeogenous_points = intrinsic_K * transformation_matrix * lidar_xyz;
+    MatrixXf pixel_homeogenous_points;
+    pixel_homeogenous_points.resize(3, lidar_xyz.cols());
+    pixel_homeogenous_points = intrinsic_K * transformation_matrix * lidar_xyz;
+
+    std::cout<<"Transformation Matrix = "<<transformation_matrix<<std::endl;
+    std::cout<<"Intrinsic K = "<<intrinsic_K<<std::endl;
+
+    std::cout<<"pixel_homeogenous = ("<<pixel_homeogenous_points.rows()<<", "<<pixel_homeogenous_points.cols()<<")"<<std::endl;
+
     std::cout<<"SUCCESFULL PX DECLARATION "<<std::endl;
     px.resize(pixel_homeogenous_points.cols());
     std::cout<<"PX VECTOR SIZE = " << pixel_homeogenous_points.cols()<<std::endl;
     for(int i=0; i<pixel_homeogenous_points.cols(); i++){
-        px[i].x = pixel_homeogenous_points(0,i)/pixel_homeogenous_points(2,i);
-        px[i].y = pixel_homeogenous_points(1,i)/pixel_homeogenous_points(2,i);
+        std::cout<<"i = "<<i<<std::endl;
+        pixel_homeogenous_points(0,i) = pixel_homeogenous_points(0,i)/pixel_homeogenous_points(2,i);
+        std::cout<<"x = "<<pixel_homeogenous_points(0,i)<< "/" <<pixel_homeogenous_points(2,i)<<" = " << pixel_homeogenous_points(0,i)/pixel_homeogenous_points(2,i) <<std::endl;
+        pixel_homeogenous_points(1,i) = pixel_homeogenous_points(1,i)/pixel_homeogenous_points(2,i);
+        std::cout<<"y = "<<pixel_homeogenous_points(1,i)<< "/" <<pixel_homeogenous_points(2,i)<<" = " << pixel_homeogenous_points(1,i)/pixel_homeogenous_points(2,i) <<std::endl;
+
+        px[i].x = pixel_homeogenous_points(0,i);
+        px[i].y = pixel_homeogenous_points(1,i);
     }
 }
 
@@ -159,11 +173,13 @@ void Fusion::find_inside_bounding_boxes(turtle_interfaces::msg::BoundingBoxes ca
 {
     std::vector<float> x_buf, y_buf, z_buf;
     std::vector<cv::Rect2f> bounding_boxes;
+    bounding_boxes.resize(cam_msg.x.size());
 
     pcl_xyz.resize(3,cam_msg.x.size());
-
+    std::cout<<"DEBUG 5"<<std::endl;
     for(int i=0; i<cam_msg.x.size(); i++){
-        bounding_boxes[i] = cv::Rect2d(cam_msg.x[i], cam_msg.y[i], cam_msg.w[i], cam_msg.h[i]);
+        bounding_boxes[i] = cv::Rect2f(cam_msg.x[i], cam_msg.y[i], cam_msg.w[i], cam_msg.h[i]);
+        std::cout<<"DEBUG 6"<<std::endl;
         for(int j=0; j<px.size(); j++){
             if(px[j].inside(bounding_boxes[i])){
                 x_buf.push_back(lidar_xyz(0,j));    //x(j)
