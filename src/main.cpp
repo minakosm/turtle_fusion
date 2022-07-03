@@ -4,7 +4,11 @@
 #include "rclcpp/rclcpp.hpp"
 #include "ament_index_cpp/get_package_share_directory.hpp" 
 
-
+/**
+ * TODO BEFORE PRODUCTION : 
+ *  1) DELETE EVERY LOGGER 
+ *  2) DELETE EVERY STD::COUT
+ */
 
 int main(int argc, char** argv)
 {
