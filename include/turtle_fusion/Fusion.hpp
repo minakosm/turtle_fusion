@@ -20,6 +20,9 @@
 
 using namespace Eigen;
 
+#define IMAGE_WIDTH 2560
+#define IMAGE_HEIGHT 2048
+
 class Fusion
 {
 private:
@@ -73,7 +76,7 @@ void Fusion::read_intrinsic_params(int camera_id)
     std::string package_share_path = ament_index_cpp::get_package_share_directory("turtle_calibration");
     std::string intrinsic_filename = package_share_path + "/settings/intrinsic_params" + std::to_string(camera_id) + ".yaml";
 
-    auto yaml_root = YAML::LoadFile(intrinsic_filename);
+    YAML::Node yaml_root = YAML::LoadFile(intrinsic_filename);
 
     for(YAML::const_iterator it = yaml_root.begin(); it!=yaml_root.end(); it++){
         
@@ -149,50 +152,43 @@ void Fusion::calculate_pixel_points()
     pixel_homeogenous_points.resize(3, lidar_xyz.cols());
     pixel_homeogenous_points = intrinsic_K * transformation_matrix * lidar_xyz;
 
-    std::cout<<"Transformation Matrix = "<<transformation_matrix<<std::endl;
-    std::cout<<"Intrinsic K = "<<intrinsic_K<<std::endl;
-
-    std::cout<<"pixel_homeogenous = ("<<pixel_homeogenous_points.rows()<<", "<<pixel_homeogenous_points.cols()<<")"<<std::endl;
-
-    std::cout<<"SUCCESFULL PX DECLARATION "<<std::endl;
     px.resize(pixel_homeogenous_points.cols());
-    std::cout<<"PX VECTOR SIZE = " << pixel_homeogenous_points.cols()<<std::endl;
     for(int i=0; i<pixel_homeogenous_points.cols(); i++){
-        std::cout<<"i = "<<i<<std::endl;
         pixel_homeogenous_points(0,i) = pixel_homeogenous_points(0,i)/pixel_homeogenous_points(2,i);
-        std::cout<<"x = "<<pixel_homeogenous_points(0,i)<< "/" <<pixel_homeogenous_points(2,i)<<" = " << pixel_homeogenous_points(0,i)/pixel_homeogenous_points(2,i) <<std::endl;
         pixel_homeogenous_points(1,i) = pixel_homeogenous_points(1,i)/pixel_homeogenous_points(2,i);
-        std::cout<<"y = "<<pixel_homeogenous_points(1,i)<< "/" <<pixel_homeogenous_points(2,i)<<" = " << pixel_homeogenous_points(1,i)/pixel_homeogenous_points(2,i) <<std::endl;
-
+        
         px[i].x = pixel_homeogenous_points(0,i);
         px[i].y = pixel_homeogenous_points(1,i);
+
     }
 }
 
 void Fusion::find_inside_bounding_boxes(turtle_interfaces::msg::BoundingBoxes cam_msg)
 {
     std::vector<float> x_buf, y_buf, z_buf;
-    std::vector<cv::Rect2f> bounding_boxes;
-    bounding_boxes.resize(cam_msg.x.size());
-
     pcl_xyz.resize(3,cam_msg.x.size());
-    std::cout<<"DEBUG 5"<<std::endl;
+
+    // std::cout<<"FOUND "<<cam_msg.x.size()<< " BOUNDING BOXES "<<std::endl;
     for(int i=0; i<cam_msg.x.size(); i++){
-        bounding_boxes[i] = cv::Rect2f(cam_msg.x[i], cam_msg.y[i], cam_msg.w[i], cam_msg.h[i]);
-        std::cout<<"DEBUG 6"<<std::endl;
+        cv::Rect2f bounding_box(cam_msg.x[i] * IMAGE_WIDTH, cam_msg.y[i] * IMAGE_HEIGHT, cam_msg.w[i] * IMAGE_WIDTH, cam_msg.h[i] * IMAGE_HEIGHT);
+
         for(int j=0; j<px.size(); j++){
-            if(px[j].inside(bounding_boxes[i])){
+            if(px[j].inside(bounding_box)){
                 x_buf.push_back(lidar_xyz(0,j));    //x(j)
                 y_buf.push_back(lidar_xyz(1,j));    //y(j)
                 z_buf.push_back(lidar_xyz(2,j));    //z(j) 
             }
         }
-        std::cout<<"ENTERING DISTANCE EXTRACTION FUNC in FUSION.HPP"<<std::endl;
+        if(x_buf.size() == 0){
+            // std::cout<<"NO POINTS FOUND FOR BOUNDING BOX "<<i<<std::endl;   
+            continue;
+        }
         extract_distance(x_buf, y_buf, z_buf, i);
         x_buf.clear();
         y_buf.clear();
         z_buf.clear();
     }
+
 }
 
 
@@ -214,4 +210,5 @@ void Fusion::extract_distance(std::vector<float> v_x, std::vector<float> v_y, st
     pcl_xyz(0,bounding_box_id) = mean_x;
     pcl_xyz(1,bounding_box_id) = mean_y;
     pcl_xyz(2,bounding_box_id) = mean_z;
+
 }

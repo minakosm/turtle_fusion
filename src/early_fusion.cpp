@@ -50,15 +50,17 @@ void FusionHandler::init_subscribers()
     rclcpp::QoS qos(10);
     qos.reliability(RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT);
     
-    pcl_subscriber = this->create_subscription<sensor_msgs::msg::PointCloud2>(t.pcl_subscriber_topic, qos, std::bind(&FusionHandler::lidarMsgCallback, this, std::placeholders::_1));
+    options.callback_group = lidar_callback_group;
 
-    // std::function<void(const turtle_interfaces::msg::BoundingBoxes msg)> jai_left_subscriber = std::bind(&FusionHandler::cameraCallback, this, std::placeholders::_1, 0);
-    // std::function<void(const turtle_interfaces::msg::BoundingBoxes msg)> jai_center_subscriber = std::bind(&FusionHandler::cameraCallback, this, std::placeholders::_1, 1);
-    // std::function<void(const turtle_interfaces::msg::BoundingBoxes msg)> jai_right_subscriber = std::bind(&FusionHandler::cameraCallback, this, std::placeholders::_1, 2);
+    pcl_subscriber = this->create_subscription<sensor_msgs::msg::PointCloud2>(t.pcl_subscriber_topic, qos, std::bind(&FusionHandler::lidarMsgCallback, this, std::placeholders::_1), options);
 
-    jai_left_subscriber = this->create_subscription<turtle_interfaces::msg::BoundingBoxes>(t.jai_left_topic, qos, std::bind(&FusionHandler::cameraCallback,this,std::placeholders::_1));
-    jai_center_subscriber = this->create_subscription<turtle_interfaces::msg::BoundingBoxes>(t.jai_center_topic, qos, std::bind(&FusionHandler::cameraCallback,this,std::placeholders::_1));
-    jai_right_subscriber = this->create_subscription<turtle_interfaces::msg::BoundingBoxes>(t.jai_right_topic, qos, std::bind(&FusionHandler::cameraCallback,this,std::placeholders::_1));
+    options.callback_group = camera_callback_group;
+
+    jai_left_subscriber = this->create_subscription<turtle_interfaces::msg::BoundingBoxes>(t.jai_left_topic, qos, std::bind(&FusionHandler::cameraCallback,this,std::placeholders::_1), options);
+    jai_center_subscriber = this->create_subscription<turtle_interfaces::msg::BoundingBoxes>(t.jai_center_topic, qos, std::bind(&FusionHandler::cameraCallback,this,std::placeholders::_1), options);
+    jai_right_subscriber = this->create_subscription<turtle_interfaces::msg::BoundingBoxes>(t.jai_right_topic, qos, std::bind(&FusionHandler::cameraCallback,this,std::placeholders::_1), options);
+
+
 
 }
 
@@ -70,6 +72,11 @@ void FusionHandler::init_publishers()
     pcl_publisher = this->create_publisher<sensor_msgs::msg::PointCloud2>("/fusion/coneDistances", Qos);
 
     coneDistancesMsg.header.frame_id = "os1";
+
+    coneDistancesMsg.height = 1;
+    coneDistancesMsg.is_bigendian = false;
+    coneDistancesMsg.point_step = 12;
+
     coneDistancesMsg.fields.resize(3); //x, y, z
         
     coneDistancesMsg.fields[0].name = "x";
@@ -98,75 +105,63 @@ void FusionHandler::lidarMsgCallback(sensor_msgs::msg::PointCloud2 pcl_msg)
     this->latest_pcl = pcl_msg;
     fusion_mutex.unlock();
 
-    std::cout << "Save latest PointCloud message"<<std::endl;
+    // std::cout << "Save latest PointCloud message"<<std::endl;
+    lidar_flag = true;
 }
 
 void FusionHandler::cameraCallback(const turtle_interfaces::msg::BoundingBoxes cam_msg)
 {
-    std::cout<<"Inside Camera Callback"<<std::endl;
-    std::cout<<"Camera identifier : "<<(int)cam_msg.camera<<std::endl;
+    // std::cout<<"Inside Camera Callback"<<std::endl;
+    // std::cout<<"Camera identifier : "<<(int)cam_msg.camera<<std::endl;
 
+    if(lidar_flag && cam_msg.x.size() != 0){
+        fusion_mutex.lock_shared();
+        sensor_msgs::msg::PointCloud2 fusion_pcl = this->latest_pcl;
+        fusion_mutex.unlock_shared();
 
+        fusion(fusion_pcl, cam_msg);
+        publishCones();
+    }
 
-    fusion_mutex.lock_shared();
-    std::cout<<"DEBUG INSIDE MUTEX"<<std::endl;
-    auto fusion_pcl = this->latest_pcl;
-    fusion_mutex.unlock_shared();
-    std::cout<<"MUTEX_LOCKED"<<std::endl;
-
-    fusion(fusion_pcl, cam_msg);
-    std::cout<<"EXITING FUSION"<<std::endl;
-    publishCones();
 }
 
 void Fusion::fusion(sensor_msgs::msg::PointCloud2 pcl_msg , turtle_interfaces::msg::BoundingBoxes cam_msg)
 {
 
-    std::cout<<"INSIDE FUSION FNCTION"<<std::endl;
     int camera_id = (int)cam_msg.camera;
 
-    std::cout<<"CAMERA ID = "<<camera_id<<std::endl;
+    // std::cout<<"CAMERA ID = "<<camera_id<<std::endl;
     set_lidar_XYZ(pcl_msg);
-    std::cout<<"FUSION DEBUG 1"<<std::endl;
+
     read_intrinsic_params(camera_id);
-    std::cout<<"FUSION DEBUG 2"<<std::endl;
     calculate_transformation_matrix(camera_id);
-    std::cout<<"FUSION DEBUG 3"<<std::endl;
     calculate_pixel_points();
-    std::cout<<"FUSION DEBUG 4"<<std::endl;
     find_inside_bounding_boxes(cam_msg);
 }
 
 void FusionHandler::publishCones()
 {
-    MatrixXf pcl_msg;
-    uint8_t* ptr = coneDistancesMsg.data.data();
-
-    coneDistancesMsg.width = get_pcl_xyz().cols();
-    coneDistancesMsg.height = 1;
-    coneDistancesMsg.is_bigendian = false;
-    coneDistancesMsg.point_step = 16;
+    
+    Matrix3Xf pcl_msg = get_pcl_xyz();
+    
+    coneDistancesMsg.width = pcl_msg.cols();
     coneDistancesMsg.row_step = coneDistancesMsg.width * coneDistancesMsg.point_step;
-    coneDistancesMsg.is_dense = true;
 
+    coneDistancesMsg.data.resize(coneDistancesMsg.row_step);
 
-    std::cout<<"DEBUG 7"<<std::endl;
-    coneDistancesMsg.data.resize(coneDistancesMsg.point_step * coneDistancesMsg.width);
-    std::cout<<"DEBUG 8"<<std::endl;
+    
+    uint8_t* ptr = coneDistancesMsg.data.data();
+    coneDistancesMsg.is_dense = false;
    
-    std::cout<<"PclMsg = ("<<pcl_msg.rows()<<" x "<<pcl_msg.cols()<<")"<<std::endl;
     for (int i = 0; i < pcl_msg.cols(); i++){
-    //    *((float*)(ptr + i*coneDistancesMsg.point_step)) = get_pcl_xyz()(0,i);
-    //    *((float*)(ptr + i*coneDistancesMsg.point_step + 4)) = get_pcl_xyz()(1,i);
-    //    *((float*)(ptr + i*coneDistancesMsg.point_step + 8)) = get_pcl_xyz()(2,i);
 
-    *((float*)(ptr + i*coneDistancesMsg.point_step)) = pcl_msg(0,i);
-    std::cout<<"i = "<<i<<std::endl;
-    *((float*)(ptr + i*coneDistancesMsg.point_step + 4)) = pcl_msg(1,i);
-    *((float*)(ptr + i*coneDistancesMsg.point_step + 8)) = pcl_msg(2,i);
-    std::cout<<"NEXT ITERATION"<<std::endl;
+        *((float*)(ptr + i*coneDistancesMsg.point_step)) = pcl_msg(0,i);
+
+        *((float*)(ptr + i*coneDistancesMsg.point_step + 4)) = pcl_msg(1,i);
+
+        *((float*)(ptr + i*coneDistancesMsg.point_step + 8)) = pcl_msg(2,i);
     }
     
     pcl_publisher->publish(coneDistancesMsg);
-    std::cout<<"MESSAGE PUBLISHED!!!!"<<std::endl;
+    // std::cout<<"MESSAGE PUBLISHED!!!!"<<std::endl;
 }

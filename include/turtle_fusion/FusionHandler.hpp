@@ -34,6 +34,10 @@ private:
 
     Topics t;
 
+    rclcpp::SubscriptionOptions options;
+    rclcpp::CallbackGroup::SharedPtr camera_callback_group = create_callback_group(rclcpp::CallbackGroupType::Reentrant);
+    rclcpp::CallbackGroup::SharedPtr lidar_callback_group = create_callback_group(rclcpp::CallbackGroupType::Reentrant);
+
     rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr pcl_subscriber;
     // message_filters::Subscriber<sensor_msgs::msg::PointCloud2> *pcl_subscriber;
 
@@ -48,8 +52,8 @@ private:
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pcl_publisher;
     sensor_msgs::msg::PointCloud2 coneDistancesMsg; // x y z rgb t 
 
-    mutable std::shared_timed_mutex fusion_mutex;
-
+    std::shared_timed_mutex fusion_mutex;
+    bool lidar_flag;
     sensor_msgs::msg::PointCloud2 latest_pcl;
 
 
