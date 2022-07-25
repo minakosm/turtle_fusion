@@ -27,6 +27,7 @@ private:
     struct Topics{
         std::string pcl_subscriber_topic;
         std::string pcl_publisher_topic;
+        std::string bb_pcl_publisher_topic;
         std::string jai_left_topic;
         std::string jai_center_topic;
         std::string jai_right_topic;
@@ -52,6 +53,9 @@ private:
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pcl_publisher;
     sensor_msgs::msg::PointCloud2 coneDistancesMsg; // x y z rgb t 
 
+    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr bb_pcl_publisher;
+    sensor_msgs::msg::PointCloud2 boundingBoxPclMsg; // x y z rgb t 
+
     std::shared_timed_mutex fusion_mutex;
     bool lidar_flag;
     sensor_msgs::msg::PointCloud2 latest_pcl;
@@ -70,5 +74,6 @@ public:
     void cameraCallback(const turtle_interfaces::msg::BoundingBoxes);
 
     void publishCones();
+    void publishBBPcl();
 
 };

@@ -17,6 +17,8 @@
 #include "opencv2/opencv.hpp"
 #include "opencv2/core/eigen.hpp"
 
+#include "rclcpp/rclcpp.hpp"
+
 
 using namespace Eigen;
 
@@ -35,7 +37,10 @@ std::vector<cv::Point2f> px;                    // image frame pixel points
 Matrix3f intrinsic_K;                           // Camera Matrix 
 Matrix<float, 1, 5> intrinsic_D;                // Distortion Coefficients    
 
-Matrix3Xf pcl_xyz;                              // Pcl message to be pushed
+// Matrix4Xf pcl_xyz;                              // Pcl message to be pushed
+Matrix3Xf pcl_xyz;
+// float cone_color;
+Matrix3Xf bb_pcl;
 
 public:
     void set_lidar_XYZ(sensor_msgs::msg::PointCloud2);
@@ -45,12 +50,16 @@ public:
     void calculate_pixel_points();
     void find_inside_bounding_boxes(turtle_interfaces::msg::BoundingBoxes);
     void extract_distance(std::vector<float>, std::vector<float>, std::vector<float>, int);
+    
+    void assign_bb_pcl(std::vector<float>);
 
     void fusion(sensor_msgs::msg::PointCloud2, turtle_interfaces::msg::BoundingBoxes);
 
     MatrixXf get_lidar_xyz(){return lidar_xyz;}
     std::vector<cv::Point2f> get_px(){return px;}
+    // Matrix4Xf get_pcl_xyz(){return pcl_xyz;}
     Matrix3Xf get_pcl_xyz(){return pcl_xyz;}
+    Matrix3Xf get_bb_pcl(){return bb_pcl;}
 };
 
 void Fusion::set_lidar_XYZ(sensor_msgs::msg::PointCloud2 pcl_msg)
@@ -58,6 +67,7 @@ void Fusion::set_lidar_XYZ(sensor_msgs::msg::PointCloud2 pcl_msg)
     uint8_t* ptr = pcl_msg.data.data();
     int pcl_size = pcl_msg.data.size()/pcl_msg.point_step;
 
+    std::cout<<"PCL SIZE = "<<pcl_size<<std::endl<<std::endl;
     // resize 4xN (x(i) y(i) z(i) 1)
     lidar_xyz.resize(4,pcl_size);
 
@@ -165,11 +175,15 @@ void Fusion::calculate_pixel_points()
 
 void Fusion::find_inside_bounding_boxes(turtle_interfaces::msg::BoundingBoxes cam_msg)
 {
-    std::vector<float> x_buf, y_buf, z_buf;
+    std::vector<float> x_buf, y_buf, z_buf, indexes;
+    int counter = 0;
+    // pcl_xyz.resize(4,cam_msg.x.size());
     pcl_xyz.resize(3,cam_msg.x.size());
 
     // std::cout<<"FOUND "<<cam_msg.x.size()<< " BOUNDING BOXES "<<std::endl;
     for(int i=0; i<cam_msg.x.size(); i++){
+
+        // cone_color = cam_msg.color[i];
         cv::Rect2f bounding_box(cam_msg.x[i] * IMAGE_WIDTH, cam_msg.y[i] * IMAGE_HEIGHT, cam_msg.w[i] * IMAGE_WIDTH, cam_msg.h[i] * IMAGE_HEIGHT);
 
         for(int j=0; j<px.size(); j++){
@@ -177,18 +191,38 @@ void Fusion::find_inside_bounding_boxes(turtle_interfaces::msg::BoundingBoxes ca
                 x_buf.push_back(lidar_xyz(0,j));    //x(j)
                 y_buf.push_back(lidar_xyz(1,j));    //y(j)
                 z_buf.push_back(lidar_xyz(2,j));    //z(j) 
+
+                counter++;
+                indexes.push_back(j);
+                // bb_pcl.resize(3,counter);
+                // bb_pcl(0,counter) = lidar_xyz(0,j);
+                // bb_pcl(1,counter) = lidar_xyz(1,j);
+                // bb_pcl(2,counter) = lidar_xyz(2,j);
             }
+
+
         }
         if(x_buf.size() == 0){
             // std::cout<<"NO POINTS FOUND FOR BOUNDING BOX "<<i<<std::endl;   
             continue;
         }
         extract_distance(x_buf, y_buf, z_buf, i);
+
         x_buf.clear();
         y_buf.clear();
         z_buf.clear();
     }
+    assign_bb_pcl(indexes);
+    indexes.clear();
+}
 
+void Fusion::assign_bb_pcl(std::vector<float> id){
+    bb_pcl.resize(3,id.size());
+    for (int i=0; i<id.size(); i++){
+        bb_pcl(0,i) = lidar_xyz(0,id[i]);
+        bb_pcl(1,i) = lidar_xyz(1,id[i]);
+        bb_pcl(2,i) = lidar_xyz(2,id[i]);
+    }
 }
 
 
@@ -207,8 +241,25 @@ void Fusion::extract_distance(std::vector<float> v_x, std::vector<float> v_y, st
     mean_y = mean_y / v_y.size();
     mean_z = mean_z / v_z.size();
 
-    pcl_xyz(0,bounding_box_id) = mean_x;
-    pcl_xyz(1,bounding_box_id) = mean_y;
-    pcl_xyz(2,bounding_box_id) = mean_z;
+    // pcl_xyz(0,bounding_box_id) = mean_x;
+    // pcl_xyz(1,bounding_box_id) = mean_y;
+    // pcl_xyz(2,bounding_box_id) = mean_z;
+
+    // pcl_xyz(3,bounding_box_id) = cone_color;
+
+
+    float r = 10000;
+    int flag = 0;
+    for(int i=0; i<v_x.size(); i++){
+        float tmp = sqrt(pow(v_x[i],2) + pow(v_y[i],2) + pow(v_z[i],2));
+        if(tmp<r){
+            r = tmp;
+            flag = i;
+        }
+    }
+
+    pcl_xyz(0,bounding_box_id) = (mean_x + v_x[flag]) / 2;
+    pcl_xyz(1,bounding_box_id) = (mean_y + v_y[flag]) / 2;
+    pcl_xyz(2,bounding_box_id) = (mean_z + v_z[flag]) / 2;
 
 }

@@ -39,6 +39,7 @@ void FusionHandler::def_topics()
     t.pcl_subscriber_topic = pt.get<std::string>("Subscribers.pcl_sub");
 
     t.pcl_publisher_topic = pt.get<std::string>("Publishers.pcl_pub");
+    t.bb_pcl_publisher_topic = pt.get<std::string>("Publishers.bb_pcl_pub");
     t.jai_left_topic = pt.get<std::string>("Publishers.jai_left_pub");
     t.jai_center_topic = pt.get<std::string>("Publishers.jai_center_pub");
     t.jai_right_topic = pt.get<std::string>("Publishers.jai_right_pub");
@@ -58,9 +59,7 @@ void FusionHandler::init_subscribers()
 
     jai_left_subscriber = this->create_subscription<turtle_interfaces::msg::BoundingBoxes>(t.jai_left_topic, qos, std::bind(&FusionHandler::cameraCallback,this,std::placeholders::_1), options);
     jai_center_subscriber = this->create_subscription<turtle_interfaces::msg::BoundingBoxes>(t.jai_center_topic, qos, std::bind(&FusionHandler::cameraCallback,this,std::placeholders::_1), options);
-    jai_right_subscriber = this->create_subscription<turtle_interfaces::msg::BoundingBoxes>(t.jai_right_topic, qos, std::bind(&FusionHandler::cameraCallback,this,std::placeholders::_1), options);
-
-
+    //jai_right_subscriber = this->create_subscription<turtle_interfaces::msg::BoundingBoxes>(t.jai_right_topic, qos, std::bind(&FusionHandler::cameraCallback,this,std::placeholders::_1), options);
 
 }
 
@@ -69,16 +68,27 @@ void FusionHandler::init_publishers()
 {
     rclcpp::SensorDataQoS Qos;
 
-    pcl_publisher = this->create_publisher<sensor_msgs::msg::PointCloud2>("/fusion/coneDistances", Qos);
+    pcl_publisher = this->create_publisher<sensor_msgs::msg::PointCloud2>(t.pcl_publisher_topic, Qos);
+    bb_pcl_publisher = this->create_publisher<sensor_msgs::msg::PointCloud2>(t.bb_pcl_publisher_topic,Qos);
 
     coneDistancesMsg.header.frame_id = "os1";
+    boundingBoxPclMsg.header.frame_id = "os1";
 
     coneDistancesMsg.height = 1;
-    coneDistancesMsg.is_bigendian = false;
-    coneDistancesMsg.point_step = 12;
+    boundingBoxPclMsg.height = 1;
 
-    coneDistancesMsg.fields.resize(3); //x, y, z
-        
+    coneDistancesMsg.is_bigendian = false;
+    boundingBoxPclMsg.is_bigendian = false;
+
+    coneDistancesMsg.point_step = 12;
+    boundingBoxPclMsg.point_step = 12;
+    // coneDistancesMsg.point_step = 16;
+
+    // coneDistancesMsg.fields.resize(4); //x, y, z, rgb
+     
+    coneDistancesMsg.fields.resize(3);
+    boundingBoxPclMsg.fields.resize(3);
+
     coneDistancesMsg.fields[0].name = "x";
     coneDistancesMsg.fields[0].offset = 0;
     coneDistancesMsg.fields[0].datatype = 7;
@@ -93,9 +103,26 @@ void FusionHandler::init_publishers()
     coneDistancesMsg.fields[2].offset = 8;
     coneDistancesMsg.fields[2].datatype = 7;
     coneDistancesMsg.fields[2].count = 1;
-    /*
-        ADD ConeDistances attributes
-    */
+
+    // coneDistancesMsg.fields[3].name = "rgb";
+    // coneDistancesMsg.fields[3].offset = 12;
+    // coneDistancesMsg.fields[3].datatype = 7;
+    // coneDistancesMsg.fields[3].count = 1;
+
+    boundingBoxPclMsg.fields[0].name = "x";
+    boundingBoxPclMsg.fields[0].offset = 0;
+    boundingBoxPclMsg.fields[0].datatype = 7;
+    boundingBoxPclMsg.fields[0].count = 1;
+
+    boundingBoxPclMsg.fields[1].name = "y";
+    boundingBoxPclMsg.fields[1].offset = 4;
+    boundingBoxPclMsg.fields[1].datatype = 7;
+    boundingBoxPclMsg.fields[1].count = 1;
+
+    boundingBoxPclMsg.fields[2].name = "z";
+    boundingBoxPclMsg.fields[2].offset = 8;
+    boundingBoxPclMsg.fields[2].datatype = 7;
+    boundingBoxPclMsg.fields[2].count = 1;
     
 }
 
@@ -117,10 +144,12 @@ void FusionHandler::cameraCallback(const turtle_interfaces::msg::BoundingBoxes c
     if(lidar_flag && cam_msg.x.size() != 0){
         fusion_mutex.lock_shared();
         sensor_msgs::msg::PointCloud2 fusion_pcl = this->latest_pcl;
-        fusion_mutex.unlock_shared();
-
+        
         fusion(fusion_pcl, cam_msg);
         publishCones();
+        publishBBPcl();
+        
+        fusion_mutex.unlock_shared();
     }
 
 }
@@ -129,12 +158,8 @@ void Fusion::fusion(sensor_msgs::msg::PointCloud2 pcl_msg , turtle_interfaces::m
 {
 
     int camera_id = (int)cam_msg.camera;
-
-    // std::cout<<"CAMERA ID = "<<camera_id<<std::endl;
     set_lidar_XYZ(pcl_msg);
-
     read_intrinsic_params(camera_id);
-    calculate_transformation_matrix(camera_id);
     calculate_pixel_points();
     find_inside_bounding_boxes(cam_msg);
 }
@@ -142,8 +167,13 @@ void Fusion::fusion(sensor_msgs::msg::PointCloud2 pcl_msg , turtle_interfaces::m
 void FusionHandler::publishCones()
 {
     
-    Matrix3Xf pcl_msg = get_pcl_xyz();
-    
+    // Matrix4Xf pcl_msg = get_pcl_xyz();
+    Matrix3Xf pcl_msg ;
+
+    pcl_msg = get_pcl_xyz();
+
+
+
     coneDistancesMsg.width = pcl_msg.cols();
     coneDistancesMsg.row_step = coneDistancesMsg.width * coneDistancesMsg.point_step;
 
@@ -160,8 +190,43 @@ void FusionHandler::publishCones()
         *((float*)(ptr + i*coneDistancesMsg.point_step + 4)) = pcl_msg(1,i);
 
         *((float*)(ptr + i*coneDistancesMsg.point_step + 8)) = pcl_msg(2,i);
+
+        // *((float*)(ptr + i*coneDistancesMsg.point_step + 12)) = pcl_msg(3,i);
     }
     
     pcl_publisher->publish(coneDistancesMsg);
     // std::cout<<"MESSAGE PUBLISHED!!!!"<<std::endl;
+}
+
+void FusionHandler::publishBBPcl(){
+
+    Matrix3Xf bb_pcl_msg;
+
+
+    bb_pcl_msg = get_bb_pcl();
+
+
+    boundingBoxPclMsg.width = bb_pcl_msg.cols();
+    boundingBoxPclMsg.row_step = boundingBoxPclMsg.width * boundingBoxPclMsg.point_step;
+
+    boundingBoxPclMsg.data.resize(boundingBoxPclMsg.row_step);
+
+    
+    uint8_t* ptr = boundingBoxPclMsg.data.data();
+    // boundingBoxPclMsg.is_dense = false;
+   
+    for (int i = 0; i < bb_pcl_msg.cols(); i++){
+
+        *((float*)(ptr + i*boundingBoxPclMsg.point_step)) = bb_pcl_msg(0,i);
+
+        *((float*)(ptr + i*boundingBoxPclMsg.point_step + 4)) = bb_pcl_msg(1,i);
+
+        *((float*)(ptr + i*boundingBoxPclMsg.point_step + 8)) = bb_pcl_msg(2,i);
+
+        // *((float*)(ptr + i*coneDistancesMsg.point_step + 12)) = pcl_msg(3,i);
+    }
+    
+    bb_pcl_publisher->publish(boundingBoxPclMsg);
+    // std::cout<<"MESSAGE PUBLISHED!!!!"<<std::endl;
+
 }
