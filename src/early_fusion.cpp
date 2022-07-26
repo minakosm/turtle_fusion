@@ -139,41 +139,60 @@ void FusionHandler::lidarMsgCallback(sensor_msgs::msg::PointCloud2 pcl_msg)
 void FusionHandler::cameraCallback(const turtle_interfaces::msg::BoundingBoxes cam_msg)
 {
     // std::cout<<"Inside Camera Callback"<<std::endl;
-    // std::cout<<"Camera identifier : "<<(int)cam_msg.camera<<std::endl;
 
     if(lidar_flag && cam_msg.x.size() != 0){
         fusion_mutex.lock_shared();
-        sensor_msgs::msg::PointCloud2 fusion_pcl = this->latest_pcl;
         
-        fusion(fusion_pcl, cam_msg);
-        publishCones();
-        publishBBPcl();
+        sensor_msgs::msg::PointCloud2 fusion_pcl ;
+        fusion_pcl = this->latest_pcl;
         
         fusion_mutex.unlock_shared();
+
+        std::pair<Matrix3Xf, Matrix3Xf> pub_pcl ;
+        pub_pcl = fusion(fusion_pcl, cam_msg);
+
+        publishCones(pub_pcl.first);
+        publishBBPcl(pub_pcl.second);
+        
+
     }
 
 }
 
-void Fusion::fusion(sensor_msgs::msg::PointCloud2 pcl_msg , turtle_interfaces::msg::BoundingBoxes cam_msg)
+std::pair<Matrix3Xf, Matrix3Xf> Fusion::fusion(sensor_msgs::msg::PointCloud2 pcl_msg , turtle_interfaces::msg::BoundingBoxes cam_msg)
 {
 
     int camera_id = (int)cam_msg.camera;
-    set_lidar_XYZ(pcl_msg);
-    read_intrinsic_params(camera_id);
-    calculate_pixel_points();
-    find_inside_bounding_boxes(cam_msg);
+    // set_lidar_XYZ(pcl_msg);
+
+
+    /*LOCAL VARIABLES IMPLEMENTATION*/
+
+    MatrixXf lidar_pcl ;
+    lidar_pcl.resize(4,pcl_msg.data.size()/pcl_msg.point_step);
+    lidar_pcl = transform_lidar_XYZ(pcl_msg);
+    
+    // read_intrinsic_params(camera_id);
+
+    /*LOCAL VARIABLES IMPLEMENTATION*/
+
+    std::pair<Matrix3f, Matrix<float, 1, 5>> intrinsics;
+    intrinsics = read_intrinsic_params(camera_id);
+
+    // calculate_pixel_points();
+
+    /*LOCAL VARIABLES IMPLEMENTATION*/
+    std::vector<cv::Point2f> px;
+    px = calculate_px_points(lidar_pcl, intrinsics, camera_id);
+
+    std::pair<Matrix3Xf, Matrix3Xf> pub_pcl;
+    pub_pcl = find_inside_bounding_boxes(lidar_pcl, px, cam_msg);
+
+    return pub_pcl;
 }
 
-void FusionHandler::publishCones()
+void FusionHandler::publishCones(Matrix3Xf pcl_msg)
 {
-    
-    // Matrix4Xf pcl_msg = get_pcl_xyz();
-    Matrix3Xf pcl_msg ;
-
-    pcl_msg = get_pcl_xyz();
-
-
-
     coneDistancesMsg.width = pcl_msg.cols();
     coneDistancesMsg.row_step = coneDistancesMsg.width * coneDistancesMsg.point_step;
 
@@ -181,7 +200,7 @@ void FusionHandler::publishCones()
 
     
     uint8_t* ptr = coneDistancesMsg.data.data();
-    coneDistancesMsg.is_dense = false;
+    coneDistancesMsg.is_dense = true;
    
     for (int i = 0; i < pcl_msg.cols(); i++){
 
@@ -198,13 +217,7 @@ void FusionHandler::publishCones()
     // std::cout<<"MESSAGE PUBLISHED!!!!"<<std::endl;
 }
 
-void FusionHandler::publishBBPcl(){
-
-    Matrix3Xf bb_pcl_msg;
-
-
-    bb_pcl_msg = get_bb_pcl();
-
+void FusionHandler::publishBBPcl(Matrix3Xf bb_pcl_msg){
 
     boundingBoxPclMsg.width = bb_pcl_msg.cols();
     boundingBoxPclMsg.row_step = boundingBoxPclMsg.width * boundingBoxPclMsg.point_step;

@@ -19,6 +19,7 @@
 #define PI 3.14159
 #endif
 
+using namespace Eigen;
 
 class FusionHandler : public rclcpp::Node, private Fusion
 {
@@ -73,7 +74,8 @@ public:
     void lidarMsgCallback(const sensor_msgs::msg::PointCloud2);
     void cameraCallback(const turtle_interfaces::msg::BoundingBoxes);
 
-    void publishCones();
-    void publishBBPcl();
+    void publishCones(Matrix3Xf);
+
+    void publishBBPcl(Matrix3Xf);
 
 };
