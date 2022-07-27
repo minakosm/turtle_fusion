@@ -160,6 +160,7 @@ void Fusion::fusion(sensor_msgs::msg::PointCloud2 pcl_msg , turtle_interfaces::m
     int camera_id = (int)cam_msg.camera;
     set_lidar_XYZ(pcl_msg);
     read_intrinsic_params(camera_id);
+    calculate_transformation_matrix(camera_id);
     calculate_pixel_points();
     find_inside_bounding_boxes(cam_msg);
 }
