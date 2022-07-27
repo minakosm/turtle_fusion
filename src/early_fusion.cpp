@@ -14,13 +14,13 @@ using namespace Eigen;
 Matrix3f camera_matrix;
 Matrix<float, 3, 4> transformation_matrix;
 
-FusionHandler::FusionHandler() : Node("early_fusion_handler")
+FusionHandler::FusionHandler(int camera_id) : Node("early_fusion_handler" + std::to_string(camera_id))
 {
     RCLCPP_INFO(this->get_logger(), "Spinning Node");
     def_topics();
     RCLCPP_INFO(this->get_logger(), "Initialized topics");
-    init_subscribers();
-    init_publishers();
+    init_subscribers(camera_id);
+    init_publishers(camera_id);
     RCLCPP_INFO(this->get_logger(), "Initialized publisers/subscribers, waiting for callbacks");
 }
 
@@ -37,16 +37,19 @@ void FusionHandler::def_topics()
     boost::property_tree::ini_parser::read_ini(filename, pt);
 
     t.pcl_subscriber_topic = pt.get<std::string>("Subscribers.pcl_sub");
+    t.jai_left_topic = pt.get<std::string>("Subscribers.jai_left_sub");
+    t.jai_center_topic = pt.get<std::string>("Subscribers.jai_center_sub");
+    t.jai_right_topic = pt.get<std::string>("Subscribers.jai_right_sub");
 
-    t.pcl_publisher_topic = pt.get<std::string>("Publishers.pcl_pub");
+    t.left_pcl_publisher_topic = pt.get<std::string>("Publishers.left_pcl_pub");
+    t.center_pcl_publisher_topic = pt.get<std::string>("Publishers.center_pcl_pub");
+    t.right_pcl_publisher_topic = pt.get<std::string>("Publishers.right_pcl_pub");
     t.bb_pcl_publisher_topic = pt.get<std::string>("Publishers.bb_pcl_pub");
-    t.jai_left_topic = pt.get<std::string>("Publishers.jai_left_pub");
-    t.jai_center_topic = pt.get<std::string>("Publishers.jai_center_pub");
-    t.jai_right_topic = pt.get<std::string>("Publishers.jai_right_pub");
+
 
 }
 
-void FusionHandler::init_subscribers()
+void FusionHandler::init_subscribers(int camera_id)
 {
     rclcpp::QoS qos(10);
     qos.reliability(RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT);
@@ -57,18 +60,41 @@ void FusionHandler::init_subscribers()
 
     options.callback_group = camera_callback_group;
 
-    jai_left_subscriber = this->create_subscription<turtle_interfaces::msg::BoundingBoxes>(t.jai_left_topic, qos, std::bind(&FusionHandler::cameraCallback,this,std::placeholders::_1), options);
-    jai_center_subscriber = this->create_subscription<turtle_interfaces::msg::BoundingBoxes>(t.jai_center_topic, qos, std::bind(&FusionHandler::cameraCallback,this,std::placeholders::_1), options);
-    //jai_right_subscriber = this->create_subscription<turtle_interfaces::msg::BoundingBoxes>(t.jai_right_topic, qos, std::bind(&FusionHandler::cameraCallback,this,std::placeholders::_1), options);
-
+    switch(camera_id){
+        case 0 :
+            jai_subscriber = this->create_subscription<turtle_interfaces::msg::BoundingBoxes>(t.jai_left_topic, qos, std::bind(&FusionHandler::cameraCallback,this,std::placeholders::_1), options);
+            break;
+        case 1 :
+            jai_subscriber = this->create_subscription<turtle_interfaces::msg::BoundingBoxes>(t.jai_center_topic, qos, std::bind(&FusionHandler::cameraCallback,this,std::placeholders::_1), options);
+            break;
+        case 2 :
+            jai_subscriber = this->create_subscription<turtle_interfaces::msg::BoundingBoxes>(t.jai_right_topic, qos, std::bind(&FusionHandler::cameraCallback,this,std::placeholders::_1), options);
+            break;
+        default : 
+            RCLCPP_ERROR(this->get_logger(), "Non valid camera ID, Shuting Down...");
+            break;
+    }
+    
 }
 
 
-void FusionHandler::init_publishers()
+void FusionHandler::init_publishers(int camera_id)
 {
     rclcpp::SensorDataQoS Qos;
 
-    pcl_publisher = this->create_publisher<sensor_msgs::msg::PointCloud2>(t.pcl_publisher_topic, Qos);
+    switch(camera_id){
+        case 0:
+            pcl_publisher = this->create_publisher<sensor_msgs::msg::PointCloud2>(t.left_pcl_publisher_topic, Qos);
+            break;
+        case 1:
+            pcl_publisher = this->create_publisher<sensor_msgs::msg::PointCloud2>(t.center_pcl_publisher_topic, Qos);
+            break;
+        case 2:
+            pcl_publisher = this->create_publisher<sensor_msgs::msg::PointCloud2>(t.right_pcl_publisher_topic, Qos);
+            break;
+        default:
+            RCLCPP_ERROR(this->get_logger(), "Non valid camera ID, Shuting Down...");
+    }
     bb_pcl_publisher = this->create_publisher<sensor_msgs::msg::PointCloud2>(t.bb_pcl_publisher_topic,Qos);
 
     coneDistancesMsg.header.frame_id = "os1";
@@ -160,6 +186,7 @@ void Fusion::fusion(sensor_msgs::msg::PointCloud2 pcl_msg , turtle_interfaces::m
     int camera_id = (int)cam_msg.camera;
     set_lidar_XYZ(pcl_msg);
     read_intrinsic_params(camera_id);
+    calculate_transformation_matrix(camera_id);
     calculate_pixel_points();
     find_inside_bounding_boxes(cam_msg);
 }
@@ -171,8 +198,6 @@ void FusionHandler::publishCones()
     Matrix3Xf pcl_msg ;
 
     pcl_msg = get_pcl_xyz();
-
-
 
     coneDistancesMsg.width = pcl_msg.cols();
     coneDistancesMsg.row_step = coneDistancesMsg.width * coneDistancesMsg.point_step;

@@ -14,10 +14,14 @@ int main(int argc, char** argv)
 {
 
     rclcpp::init(argc, argv);
-    rclcpp::executors::MultiThreadedExecutor executor;
+    rclcpp::executors::StaticSingleThreadedExecutor executor;
 
-    rclcpp::Node::SharedPtr node = std::make_shared<FusionHandler>();
-    executor.add_node(node);
+    rclcpp::Node::SharedPtr node_left = std::make_shared<FusionHandler>(0);
+    rclcpp::Node::SharedPtr node_center = std::make_shared<FusionHandler>(1);
+    // rclcpp::Node::SharedPtr node_right = std::make_shared<FusionHandler>(2);
+    executor.add_node(node_left);
+    executor.add_node(node_center);
+    //executor.add_node(node_right);
 
     executor.spin();
     // rclcpp::spin(std::make_shared<FusionHandler>());

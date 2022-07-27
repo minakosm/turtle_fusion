@@ -26,7 +26,9 @@ private:
 
     struct Topics{
         std::string pcl_subscriber_topic;
-        std::string pcl_publisher_topic;
+        std::string left_pcl_publisher_topic;
+        std::string center_pcl_publisher_topic;
+        std::string right_pcl_publisher_topic;
         std::string bb_pcl_publisher_topic;
         std::string jai_left_topic;
         std::string jai_center_topic;
@@ -42,9 +44,8 @@ private:
     rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr pcl_subscriber;
     // message_filters::Subscriber<sensor_msgs::msg::PointCloud2> *pcl_subscriber;
 
-    rclcpp::Subscription<turtle_interfaces::msg::BoundingBoxes>::SharedPtr jai_left_subscriber;
-    rclcpp::Subscription<turtle_interfaces::msg::BoundingBoxes>::SharedPtr jai_center_subscriber;
-    rclcpp::Subscription<turtle_interfaces::msg::BoundingBoxes>::SharedPtr jai_right_subscriber;
+    rclcpp::Subscription<turtle_interfaces::msg::BoundingBoxes>::SharedPtr jai_subscriber;
+
 
     // message_filters::Subscriber<turtle_interfaces::msg::BoundingBoxes> *jai_left_subscriber;
     // message_filters::Subscriber<turtle_interfaces::msg::BoundingBoxes> *jai_center_subscriber;
@@ -63,12 +64,12 @@ private:
 
 
 public: 
-    FusionHandler();
+    FusionHandler(int);
     ~FusionHandler();
 
     void def_topics();
-    void init_publishers();
-    void init_subscribers();
+    void init_publishers(int);
+    void init_subscribers(int);
 
     void lidarMsgCallback(const sensor_msgs::msg::PointCloud2);
     void cameraCallback(const turtle_interfaces::msg::BoundingBoxes);
