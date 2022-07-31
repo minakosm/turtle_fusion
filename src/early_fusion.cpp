@@ -14,6 +14,8 @@ using namespace Eigen;
 Matrix3f camera_matrix;
 Matrix<float, 3, 4> transformation_matrix;
 
+bool processing_flag;
+
 FusionHandler::FusionHandler(int camera_id) : Node("early_fusion_handler" + std::to_string(camera_id))
 {
     RCLCPP_INFO(this->get_logger(), "Spinning Node");
@@ -154,12 +156,14 @@ void FusionHandler::init_publishers(int camera_id)
 
 void FusionHandler::lidarMsgCallback(sensor_msgs::msg::PointCloud2 pcl_msg)
 {
+
+
     fusion_mutex.lock();
     this->latest_pcl = pcl_msg;
     fusion_mutex.unlock();
 
     // std::cout << "Save latest PointCloud message"<<std::endl;
-    lidar_flag = true;
+
 }
 
 void FusionHandler::cameraCallback(const turtle_interfaces::msg::BoundingBoxes cam_msg)
@@ -167,8 +171,12 @@ void FusionHandler::cameraCallback(const turtle_interfaces::msg::BoundingBoxes c
     // std::cout<<"Inside Camera Callback"<<std::endl;
     // std::cout<<"Camera identifier : "<<(int)cam_msg.camera<<std::endl;
 
-    if(lidar_flag && cam_msg.x.size() != 0){
+    this->lidar_flag = !(latest_pcl.data.size() == 0);
+    processing_flag = lidar_flag && !(cam_msg.x.size() == 0);
+
+    if(processing_flag){
         fusion_mutex.lock_shared();
+
         sensor_msgs::msg::PointCloud2 fusion_pcl = this->latest_pcl;
         
         fusion(fusion_pcl, cam_msg);

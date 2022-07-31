@@ -64,11 +64,13 @@ public:
 
 void Fusion::set_lidar_XYZ(sensor_msgs::msg::PointCloud2 pcl_msg)
 {
+
     uint8_t* ptr = pcl_msg.data.data();
     int pcl_size = pcl_msg.data.size()/pcl_msg.point_step;
 
     // std::cout<<"PCL SIZE = "<<pcl_size<<std::endl<<std::endl;
     // resize 4xN (x(i) y(i) z(i) 1)
+    
     lidar_xyz.resize(4,pcl_size);
 
     for(int i=0; i<pcl_size; i++){
