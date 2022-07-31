@@ -18,10 +18,11 @@ int main(int argc, char** argv)
 
     rclcpp::Node::SharedPtr node_left = std::make_shared<FusionHandler>(0);
     rclcpp::Node::SharedPtr node_center = std::make_shared<FusionHandler>(1);
-    // rclcpp::Node::SharedPtr node_right = std::make_shared<FusionHandler>(2);
+    rclcpp::Node::SharedPtr node_right = std::make_shared<FusionHandler>(2);
+
     executor.add_node(node_left);
     executor.add_node(node_center);
-    //executor.add_node(node_right);
+    executor.add_node(node_right);
 
     executor.spin();
     // rclcpp::spin(std::make_shared<FusionHandler>());
