@@ -145,7 +145,7 @@ void FusionHandler::cameraCallback(const turtle_interfaces::msg::BoundingBoxes c
     this->lidar_flag = !(latest_pcl.data.size() == 0);
     processing_flag = lidar_flag && !(cam_msg.x.size() == 0);
 
-    if(lidar_flag && cam_msg.x.size() != 0){
+    if(processing_flag){
         fusion_mutex.lock_shared();
         sensor_msgs::msg::PointCloud2 fusion_pcl = this->latest_pcl;
         
