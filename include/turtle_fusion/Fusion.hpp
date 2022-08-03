@@ -230,18 +230,18 @@ void Fusion::assign_bb_pcl(std::vector<float> id){
 
 void Fusion::extract_distance(std::vector<float> v_x, std::vector<float> v_y, std::vector<float> v_z, int bounding_box_id)
 {
-    float mean_x = 0;
-    float mean_y = 0; 
-    float mean_z = 0;
+    // float mean_x = 0;
+    // float mean_y = 0; 
+    // float mean_z = 0;
 
-    for(int i=0; i<v_x.size(); i++){
-        mean_x = mean_x + v_x[i];
-        mean_y = mean_y + v_y[i];
-        mean_z = mean_z + v_z[i];
-    }
-    mean_x = mean_x / v_x.size();
-    mean_y = mean_y / v_y.size();
-    mean_z = mean_z / v_z.size();
+    // for(int i=0; i<v_x.size(); i++){
+    //     mean_x = mean_x + v_x[i];
+    //     mean_y = mean_y + v_y[i];
+    //     mean_z = mean_z + v_z[i];
+    // }
+    // mean_x = mean_x / v_x.size();
+    // mean_y = mean_y / v_y.size();
+    // mean_z = mean_z / v_z.size();
 
     // pcl_xyz(0,bounding_box_id) = mean_x;
     // pcl_xyz(1,bounding_box_id) = mean_y;
@@ -260,8 +260,12 @@ void Fusion::extract_distance(std::vector<float> v_x, std::vector<float> v_y, st
         }
     }
 
-    pcl_xyz(0,bounding_box_id) = (mean_x + v_x[flag]) / 2;
-    pcl_xyz(1,bounding_box_id) = (mean_y + v_y[flag]) / 2;
-    pcl_xyz(2,bounding_box_id) = (mean_z + v_z[flag]) / 2;
+    pcl_xyz(0,bounding_box_id) = v_x[flag];
+    pcl_xyz(1,bounding_box_id) = v_y[flag];
+    pcl_xyz(2,bounding_box_id) = v_z[flag];
+
+    // pcl_xyz(0,bounding_box_id) = (mean_x + v_x[flag]) / 2;
+    // pcl_xyz(1,bounding_box_id) = (mean_y + v_y[flag]) / 2;
+    // pcl_xyz(2,bounding_box_id) = (mean_z + v_z[flag]) / 2;
 
 }
