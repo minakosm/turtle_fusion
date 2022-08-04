@@ -37,9 +37,9 @@ std::vector<cv::Point2f> px;                    // image frame pixel points
 Matrix3f intrinsic_K;                           // Camera Matrix 
 Matrix<float, 1, 5> intrinsic_D;                // Distortion Coefficients    
 
-// Matrix4Xf pcl_xyz;                              // Pcl message to be pushed
-Matrix3Xf pcl_xyz;
-// float cone_color;
+Matrix4Xf pcl_xyz;                              // Pcl message to be pushed
+// Matrix3Xf pcl_xyz;
+float cone_color;
 Matrix3Xf bb_pcl;
 
 public:
@@ -57,8 +57,8 @@ public:
 
     MatrixXf get_lidar_xyz(){return lidar_xyz;}
     std::vector<cv::Point2f> get_px(){return px;}
-    // Matrix4Xf get_pcl_xyz(){return pcl_xyz;}
-    Matrix3Xf get_pcl_xyz(){return pcl_xyz;}
+    Matrix4Xf get_pcl_xyz(){return pcl_xyz;}
+    // Matrix3Xf get_pcl_xyz(){return pcl_xyz;}
     Matrix3Xf get_bb_pcl(){return bb_pcl;}
 };
 
@@ -155,6 +155,11 @@ void Fusion::calculate_transformation_matrix(int camera_id){
 
     transformation_matrix.resize(3,4);
     transformation_matrix << rotation_matrix, translation_vector;
+
+    transformation_matrix << 0.00513168, -0.999857, 0.016079, -0.0121403,
+                             -0.242234, -0.0168433, -0.970071, -0.0280563,
+                             0.970205, 0.00108329, -0.242286, 1.01903;
+    
 }
 
 void Fusion::calculate_pixel_points()
@@ -179,13 +184,13 @@ void Fusion::find_inside_bounding_boxes(turtle_interfaces::msg::BoundingBoxes ca
 {
     std::vector<float> x_buf, y_buf, z_buf, indexes;
     int counter = 0;
-    // pcl_xyz.resize(4,cam_msg.x.size());
-    pcl_xyz.resize(3,cam_msg.x.size());
+    pcl_xyz.resize(4,cam_msg.x.size());
+    // pcl_xyz.resize(3,cam_msg.x.size());
 
     // std::cout<<"FOUND "<<cam_msg.x.size()<< " BOUNDING BOXES "<<std::endl;
     for(int i=0; i<cam_msg.x.size(); i++){
 
-        // cone_color = cam_msg.color[i];
+        cone_color = cam_msg.color[i];
         cv::Rect2f bounding_box(cam_msg.x[i] * IMAGE_WIDTH, cam_msg.y[i] * IMAGE_HEIGHT, cam_msg.w[i] * IMAGE_WIDTH, cam_msg.h[i] * IMAGE_HEIGHT);
 
         for(int j=0; j<px.size(); j++){
@@ -230,24 +235,24 @@ void Fusion::assign_bb_pcl(std::vector<float> id){
 
 void Fusion::extract_distance(std::vector<float> v_x, std::vector<float> v_y, std::vector<float> v_z, int bounding_box_id)
 {
-    // float mean_x = 0;
-    // float mean_y = 0; 
-    // float mean_z = 0;
+    float mean_x = 0;
+    float mean_y = 0; 
+    float mean_z = 0;
 
-    // for(int i=0; i<v_x.size(); i++){
-    //     mean_x = mean_x + v_x[i];
-    //     mean_y = mean_y + v_y[i];
-    //     mean_z = mean_z + v_z[i];
-    // }
-    // mean_x = mean_x / v_x.size();
-    // mean_y = mean_y / v_y.size();
-    // mean_z = mean_z / v_z.size();
+    for(int i=0; i<v_x.size(); i++){
+        mean_x = mean_x + v_x[i];
+        mean_y = mean_y + v_y[i];
+        mean_z = mean_z + v_z[i];
+    }
+    mean_x = mean_x / v_x.size();
+    mean_y = mean_y / v_y.size();
+    mean_z = mean_z / v_z.size();
 
     // pcl_xyz(0,bounding_box_id) = mean_x;
     // pcl_xyz(1,bounding_box_id) = mean_y;
     // pcl_xyz(2,bounding_box_id) = mean_z;
 
-    // pcl_xyz(3,bounding_box_id) = cone_color;
+    pcl_xyz(3,bounding_box_id) = cone_color;
 
 
     float r = 10000;
@@ -260,12 +265,12 @@ void Fusion::extract_distance(std::vector<float> v_x, std::vector<float> v_y, st
         }
     }
 
-    pcl_xyz(0,bounding_box_id) = v_x[flag];
-    pcl_xyz(1,bounding_box_id) = v_y[flag];
-    pcl_xyz(2,bounding_box_id) = v_z[flag];
+    // pcl_xyz(0,bounding_box_id) = v_x[flag];
+    // pcl_xyz(1,bounding_box_id) = v_y[flag];
+    // pcl_xyz(2,bounding_box_id) = v_z[flag];
 
-    // pcl_xyz(0,bounding_box_id) = (mean_x + v_x[flag]) / 2;
-    // pcl_xyz(1,bounding_box_id) = (mean_y + v_y[flag]) / 2;
-    // pcl_xyz(2,bounding_box_id) = (mean_z + v_z[flag]) / 2;
+    pcl_xyz(0,bounding_box_id) = (mean_x + v_x[flag]) / 2;
+    pcl_xyz(1,bounding_box_id) = (mean_y + v_y[flag]) / 2;
+    pcl_xyz(2,bounding_box_id) = (mean_z + v_z[flag]) / 2;
 
 }

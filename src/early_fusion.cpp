@@ -110,11 +110,11 @@ void FusionHandler::init_publishers(int camera_id)
 
     coneDistancesMsg.point_step = 12;
     boundingBoxPclMsg.point_step = 12;
-    // coneDistancesMsg.point_step = 16;
+    coneDistancesMsg.point_step = 16;
 
-    // coneDistancesMsg.fields.resize(4); //x, y, z, rgb
+    coneDistancesMsg.fields.resize(4); //x, y, z, rgb
      
-    coneDistancesMsg.fields.resize(3);
+    // coneDistancesMsg.fields.resize(3);
     boundingBoxPclMsg.fields.resize(3);
 
     coneDistancesMsg.fields[0].name = "x";
@@ -132,10 +132,10 @@ void FusionHandler::init_publishers(int camera_id)
     coneDistancesMsg.fields[2].datatype = 7;
     coneDistancesMsg.fields[2].count = 1;
 
-    // coneDistancesMsg.fields[3].name = "rgb";
-    // coneDistancesMsg.fields[3].offset = 12;
-    // coneDistancesMsg.fields[3].datatype = 7;
-    // coneDistancesMsg.fields[3].count = 1;
+    coneDistancesMsg.fields[3].name = "rgb";
+    coneDistancesMsg.fields[3].offset = 12;
+    coneDistancesMsg.fields[3].datatype = 7;
+    coneDistancesMsg.fields[3].count = 1;
 
     boundingBoxPclMsg.fields[0].name = "x";
     boundingBoxPclMsg.fields[0].offset = 0;
@@ -202,8 +202,8 @@ void Fusion::fusion(sensor_msgs::msg::PointCloud2 pcl_msg , turtle_interfaces::m
 void FusionHandler::publishCones()
 {
     
-    // Matrix4Xf pcl_msg = get_pcl_xyz();
-    Matrix3Xf pcl_msg ;
+    Matrix4Xf pcl_msg = get_pcl_xyz();
+    // Matrix3Xf pcl_msg ;
 
     pcl_msg = get_pcl_xyz();
 
@@ -224,7 +224,7 @@ void FusionHandler::publishCones()
 
         *((float*)(ptr + i*coneDistancesMsg.point_step + 8)) = pcl_msg(2,i);
 
-        // *((float*)(ptr + i*coneDistancesMsg.point_step + 12)) = pcl_msg(3,i);
+        *((float*)(ptr + i*coneDistancesMsg.point_step + 12)) = pcl_msg(3,i);
     }
     
     pcl_publisher->publish(coneDistancesMsg);
