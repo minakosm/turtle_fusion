@@ -48,6 +48,7 @@ void FusionHandler::def_topics()
     t.right_pcl_publisher_topic = pt.get<std::string>("Publishers.right_pcl_pub");
     t.bb_pcl_publisher_topic = pt.get<std::string>("Publishers.bb_pcl_pub");
 
+    publish_bounding_boxes = pt.get<bool>("Settings.publish_bounding_boxes");
 
 }
 
@@ -181,7 +182,8 @@ void FusionHandler::cameraCallback(const turtle_interfaces::msg::BoundingBoxes c
         
         fusion(fusion_pcl, cam_msg);
         publishCones();
-        publishBBPcl();
+
+        if(publish_bounding_boxes){publishBBPcl();}
         
         fusion_mutex.unlock_shared();
     }

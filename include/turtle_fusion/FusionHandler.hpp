@@ -54,6 +54,7 @@ private:
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pcl_publisher;
     sensor_msgs::msg::PointCloud2 coneDistancesMsg; // x y z rgb t 
 
+    bool publish_bounding_boxes;
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr bb_pcl_publisher;
     sensor_msgs::msg::PointCloud2 boundingBoxPclMsg; // x y z rgb t 
 
